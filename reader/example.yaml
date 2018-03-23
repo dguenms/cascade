@@ -1,0 +1,45 @@
+core:
+  source_repo: ml/core
+  command: gradle clean build
+
+packer-rpm:
+  source_repo: ml/rpm-build
+  source_path: build/packer
+  command: make all
+
+core-ami:
+  source_repo: ml/build-definitions
+  source_path: definitions/core
+  paths:
+    - custom_cookbooks/restart-rsyslog
+    - custom_cookbooks/ml-yum-repos
+    - custom_cookbooks/yum-installer
+    - custom_cookbooks/s3-rpm-installer
+    - custom_cookbooks/consul-config
+    - custom_cookbooks/dnsmasq-config
+    - custom_cookbooks/intuit-metadata
+    - custom_cookbooks/ml-service-config
+    - custom_cookbooks/appdynamics
+    - cookbooks/java
+  dependencies:
+    - core
+  command: ../../scripts/start_builds.sh learning core
+
+terraform:
+  source_repo: ml/druckminderer
+  dependencies:
+    - core-ami
+    - vagrant
+  command: scripts/test_infra.sh learning
+
+vagrant:
+  source_repo: ml/vagrant
+  source_path: ml-ci
+  dependencies:
+    - terraform-rpm
+  command: ../build_box.sh
+
+terraform-rpm:
+  source_repo: ml/rpm-build
+  source_path: build/terraform
+  command: make all
