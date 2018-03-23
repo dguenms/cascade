@@ -1,0 +1,13 @@
+first_step:
+  source_repo: first-repo
+  source_path: first-path
+  command: first command
+  dependencies:
+  paths:
+
+second_step:
+  source_repo: second-repo
+  source_path: second-path
+  command: second command
+  dependencies:
+  paths:

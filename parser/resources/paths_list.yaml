@@ -1,0 +1,8 @@
+build_step:
+  source_repo: some-repo
+  source_path: some-path
+  command: some command
+  dependencies:
+  paths:
+    - first-path
+    - second-path

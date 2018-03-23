@@ -1,0 +1,5 @@
+build_step:
+  source_path: some-path
+  command: some command
+  dependencies:
+  paths:
