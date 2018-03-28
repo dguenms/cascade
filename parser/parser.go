@@ -11,8 +11,8 @@ import (
 
 var fs = afero.NewOsFs()
 
-func parse(filename string) (BuildSteps, error) {
-    var steps BuildSteps
+func parse(filename string) (BuildStepsDef, error) {
+    var steps BuildStepsDef
 
     file, err := afero.ReadFile(fs, filename)
     if err != nil {

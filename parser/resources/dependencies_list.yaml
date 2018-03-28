@@ -3,6 +3,14 @@ build_step:
   source_path: some-path
   command: some command
   dependencies:
-    - first-dependency
-    - second-dependency
+    - first_dependency
+    - second_dependency
   paths:
+
+first_dependency:
+  source_repo: first
+  command: first
+
+second_dependency:
+  source_repo: second
+  command: second
