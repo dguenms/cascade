@@ -1,53 +1,53 @@
 package parser
 
 import (
-    "os"
-    "log"
+	"log"
+	"os"
 
-    "github.com/spf13/afero"
-    "gopkg.in/yaml.v2"
-    "fmt"
+	"fmt"
+	"github.com/spf13/afero"
+	"gopkg.in/yaml.v2"
 )
 
 var fs = afero.NewOsFs()
 
 func parse(filename string) (BuildStepsDef, error) {
-    var steps BuildStepsDef
+	var steps BuildStepsDef
 
-    file, err := afero.ReadFile(fs, filename)
-    if err != nil {
-        return nil, err
-    }
+	file, err := afero.ReadFile(fs, filename)
+	if err != nil {
+		return nil, err
+	}
 
-    err = yaml.UnmarshalStrict(file, &steps)
-    if err != nil {
-        return nil, err
-    }
+	err = yaml.UnmarshalStrict(file, &steps)
+	if err != nil {
+		return nil, err
+	}
 
-    err = steps.validate()
-    if err != nil {
-        return nil, err
-    }
+	err = steps.validate()
+	if err != nil {
+		return nil, err
+	}
 
-    return steps, nil
+	return steps, nil
 }
 
 func help() string {
-    return "Usage: cascade <steps.yaml>\n"
+	return "Usage: cascade <steps.yaml>\n"
 }
 
 func Main() {
-    if len(os.Args) < 2 {
-        fmt.Printf(help())
-        os.Exit(1)
-    }
+	if len(os.Args) < 2 {
+		fmt.Printf(help())
+		os.Exit(1)
+	}
 
-    filename := os.Args[1]
+	filename := os.Args[1]
 
-    steps, err := parse(filename)
-    if err != nil {
-        log.Fatal(err)
-    }
+	steps, err := parse(filename)
+	if err != nil {
+		log.Fatal(err)
+	}
 
-    fmt.Print(steps)
+	fmt.Print(steps)
 }
