@@ -51,7 +51,7 @@ func (def BuildStepsDef) determineNextSteps(stepName string) []string {
     var nextSteps []string
 
     for name, step := range def {
-        if slice.ContainsString(step.Dependencies, stepName) {
+        if slice.ContainsString(step.Dependencies, stepName) && !slice.ContainsString(nextSteps, name) {
             nextSteps = append(nextSteps, name)
         }
     }
