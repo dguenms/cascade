@@ -1,4 +1,4 @@
-package main
+package parser
 
 import (
     "os"
@@ -36,7 +36,7 @@ func help() string {
     return "Usage: cascade <steps.yaml>\n"
 }
 
-func main() {
+func Main() {
     if len(os.Args) < 2 {
         fmt.Printf(help())
         os.Exit(1)
