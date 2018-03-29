@@ -1,11 +1,14 @@
 PACKAGES?=$$(go list ./...)
 
-all: test install
+default: install
 
-test:
+get:
+	@go get -t ./...
+
+test: get
 	@go test $(PACKAGES)
 
-install:
+install: test
 	@go install
 
 fmt:
