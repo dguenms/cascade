@@ -6,75 +6,97 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-var (
-	stepDef     = StepDef{"some-repo", "some-path", "some command", []string{}, []string{"some-path"}}
-	pipelineDef = PipelineDef{"first_step": stepDef}
-
-	expectedStep     = Step{"first_step", "some-repo", "some-path", "some command", []string{"some-path"}, []int{}, []int{}}
-	expectedPipeline = Pipeline{expectedStep}
-)
-
 func TestCreatesBuildStepFromDefinition(t *testing.T) {
-	step := stepDef.create("first_step", []int{}, []int{})
+    stepDef := StepDef{"repo", "path", "command", []string{}, []string{"path"}}
 
-	require.Equal(t, expectedStep, step)
-}
+    step := stepDef.create()
 
-func TestCreatesBuildStepFromDefinitionWithSuccessors(t *testing.T) {
-	step := stepDef.create("first_step", []int{}, []int{1, 2})
-
-	expectedStep := expectedStep
-	expectedStep.Successors = []int{1, 2}
+	expectedStep := newStep("repo", "path", "command", []string{"path"})
 
 	require.Equal(t, expectedStep, step)
 }
 
 func TestCreatesSingleBuildStepFromBuildStepsDefinition(t *testing.T) {
+    stepDef := StepDef{"repo", "path", "command", []string{}, []string{"path"}}
+    pipelineDef := PipelineDef{"first": stepDef}
+
 	pipeline := pipelineDef.create()
+
+	expectedSteps := Steps{"first": newStep("repo", "path", "command", []string{"path"})}
+	expectedDependencies := Dependencies{"first": []string{}}
+	expectedPipeline := newPipeline(expectedSteps, expectedDependencies)
 
 	require.Equal(t, expectedPipeline, pipeline)
 }
 
 func TestCreatesMultipleBuildStepsFromBuildStepsDefinition(t *testing.T) {
-	stepDef2 := StepDef{"second-repo", "second-path", "second command", []string{}, []string{"second-path"}}
-	pipelineDef := PipelineDef{"first_step": stepDef, "second_step": stepDef2}
+    firstDef := StepDef{"first-repo", "first-path", "first command", []string{}, []string{"first-path"}}
+    secondDef := StepDef{"second-repo", "second-path", "second command", []string{}, []string{"second-path"}}
+    pipelineDef := PipelineDef{"first": firstDef, "second": secondDef}
 
-	pipeline := pipelineDef.create()
+    pipeline := pipelineDef.create()
 
-	expectedStep2 := Step{"second_step", "second-repo", "second-path", "second command", []string{"second-path"}, []int{}, []int{}}
+    expectedSteps := Steps{
+        "first": newStep("first-repo", "first-path", "first command", []string{"first-path"}),
+        "second": newStep("second-repo", "second-path", "second command", []string{"second-path"}),
+    }
+    expectedDependencies := Dependencies{"first": []string{}, "second": []string{}}
+    expectedPipeline := newPipeline(expectedSteps, expectedDependencies)
 
-	require.Len(t, pipeline, 2)
-	require.Contains(t, pipeline, expectedStep)
-	require.Contains(t, pipeline, expectedStep2)
+    require.Equal(t, expectedPipeline, pipeline)
 }
 
-func TestResolvesSuccessors(t *testing.T) {
-	stepDef2 := StepDef{"second-repo", "second-path", "second command", []string{"first_step"}, []string{"second-path"}}
-	pipelineDef := PipelineDef{"first_step": stepDef, "second_step": stepDef2}
+func TestResolvesDependencies(t *testing.T) {
+    firstDef := StepDef{"first-repo", "first-path", "first command", []string{}, []string{"first-path"}}
+    secondDef := StepDef{"second-repo", "second-path", "second command", []string{"first"}, []string{"second-path"}}
+    pipelineDef := PipelineDef{"first": firstDef, "second": secondDef}
 
-	pipeline := pipelineDef.create()
+    pipeline := pipelineDef.create()
 
-	expectedStep := Step{"first_step", "some-repo", "some-path", "some command", []string{"some-path"}, []int{}, []int{1}}
-	expectedStep2 := Step{"second_step", "second-repo", "second-path", "second command", []string{"second-path"}, []int{0}, []int{}}
+    expectedSteps := Steps{
+        "first": newStep("first-repo", "first-path", "first command", []string{"first-path"}),
+        "second": newStep("second-repo", "second-path", "second command", []string{"second-path"}),
+    }
+    expectedDependencies := Dependencies{"first": []string{}, "second": []string{"first"}}
+    expectedPipeline := newPipeline(expectedSteps, expectedDependencies)
 
-	require.Len(t, pipeline, 2)
-	require.Contains(t, pipeline, expectedStep)
-	require.Contains(t, pipeline, expectedStep2)
+    require.Equal(t, expectedPipeline, pipeline)
 }
 
-func TestResolvesMultipleSuccessors(t *testing.T) {
-	stepDef2 := StepDef{"second-repo", "second-path", "second command", []string{"first_step"}, []string{}}
-	stepDef3 := StepDef{"third-repo", "third-path", "third command", []string{"first_step"}, []string{}}
-	pipelineDef := PipelineDef{"first_step": stepDef, "second_step": stepDef2, "third_step": stepDef3}
+func TestResolvesMultipleStepsDependOnStep(t *testing.T) {
+    firstDef := StepDef{"first-repo", "first-path", "first command", []string{}, []string{"first-path"}}
+    secondDef := StepDef{"second-repo", "second-path", "second command", []string{"first"}, []string{"second-path"}}
+    thirdDef := StepDef{"third-repo", "third-path", "third command", []string{"first"}, []string{"third-path"}}
+    pipelineDef := PipelineDef{"first": firstDef, "second": secondDef, "third": thirdDef}
 
-	pipeline := pipelineDef.create()
+    pipeline := pipelineDef.create()
 
-	expectedStep := Step{"first_step", "some-repo", "some-path", "some command", []string{"some-path"}, []int{}, []int{1, 2}}
-	expectedStep2 := Step{"second_step", "second-repo", "second-path", "second command", []string{}, []int{0}, []int{}}
-	expectedStep3 := Step{"third_step", "third-repo", "third-path", "third command", []string{}, []int{0}, []int{}}
+    expectedSteps := Steps{
+        "first": newStep("first-repo", "first-path", "first command", []string{"first-path"}),
+        "second": newStep("second-repo", "second-path", "second command", []string{"second-path"}),
+        "third": newStep("third-repo", "third-path", "third command", []string{"third-path"}),
+    }
+    expectedDependencies := Dependencies{"first": []string{}, "second": []string{"first"}, "third": []string{"first"}}
+    expectedPipeline := newPipeline(expectedSteps, expectedDependencies)
 
-	require.Len(t, pipeline, 3)
-	require.Contains(t, pipeline, expectedStep)
-	require.Contains(t, pipeline, expectedStep2)
-	require.Contains(t, pipeline, expectedStep3)
+    require.Equal(t, expectedPipeline, pipeline)
+}
+
+func TestResolvesMultipleDependencies(t *testing.T) {
+    firstDef := StepDef{"first-repo", "first-path", "first command", []string{}, []string{"first-path"}}
+    secondDef := StepDef{"second-repo", "second-path", "second command", []string{}, []string{"second-path"}}
+    thirdDef := StepDef{"third-repo", "third-path", "third command", []string{"first", "second"}, []string{"third-path"}}
+    pipelineDef := PipelineDef{"first": firstDef, "second": secondDef, "third": thirdDef}
+
+    pipeline := pipelineDef.create()
+
+    expectedSteps := Steps{
+        "first": newStep("first-repo", "first-path", "first command", []string{"first-path"}),
+        "second": newStep("second-repo", "second-path", "second command", []string{"second-path"}),
+        "third": newStep("third-repo", "third-path", "third command", []string{"third-path"}),
+    }
+    expectedDependencies := Dependencies{"first": []string{}, "second": []string{}, "third": []string{"first", "second"}}
+    expectedPipeline := newPipeline(expectedSteps, expectedDependencies)
+
+    require.Equal(t, expectedPipeline, pipeline)
 }

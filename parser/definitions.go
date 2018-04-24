@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/toolkits/slice"
-	"sort"
 )
 
 type PipelineDef map[string]StepDef
@@ -39,57 +38,15 @@ func (def PipelineDef) validate() error {
 }
 
 func (def PipelineDef) create() Pipeline {
-	pipeline := Pipeline{}
-
-	var sortedEntries []string
-	for name, _ := range def {
-		sortedEntries = append(sortedEntries, name)
-	}
-	sort.Strings(sortedEntries)
-
-	indices := make(map[string]int)
-	for index, name := range sortedEntries {
-		indices[name] = index
-	}
-
-	for _, name := range sortedEntries {
-		step := def[name]
-		predecessors := def.predecessors(name, indices)
-		successors := def.successors(name, indices)
-		pipeline = append(pipeline, step.create(name, predecessors, successors))
-	}
-
-	return pipeline
-}
-
-func (def PipelineDef) predecessors(stepName string, indices map[string]int) []int {
-	step := def[stepName]
-	predecessors := []int{}
-
-	for _, dependency := range step.Dependencies {
-		predecessors = append(predecessors, indices[dependency])
-	}
-
-	sort.Ints(predecessors)
-
-	return predecessors
-}
-
-func (def PipelineDef) successors(stepName string, indices map[string]int) []int {
-	successors := []int{}
+	steps := make(map[string]Step)
+	dependencies := make(map[string][]string)
 
 	for name, step := range def {
-		if slice.ContainsString(step.Dependencies, stepName) {
-			index := indices[name]
-			if !slice.ContainsInt(successors, index) {
-				successors = append(successors, index)
-			}
-		}
-	}
+	    steps[name] = step.create()
+	    dependencies[name] = step.Dependencies
+    }
 
-	sort.Ints(successors)
-
-	return successors
+    return newPipeline(steps, dependencies)
 }
 
 func (def PipelineDef) String() string {
@@ -129,8 +86,8 @@ func (def StepDef) validate() error {
 	return nil
 }
 
-func (def StepDef) create(name string, predecessors []int, successors []int) Step {
-	return Step{name, def.SourceRepo, def.SourcePath, def.Command, def.Paths, predecessors, successors}
+func (def StepDef) create() Step {
+    return newStep(def.SourceRepo, def.SourcePath, def.Command, def.Paths)
 }
 
 func (def StepDef) String() string {

@@ -1,76 +1,86 @@
 package parser
 
 import (
-	"testing"
-
-	"github.com/stretchr/testify/require"
+    "testing"
+    "github.com/stretchr/testify/require"
 )
 
-func TestTwoStepPipeline(t *testing.T) {
-	stepA := Step{"a", "a", "a", "a", []string{}, []int{}, []int{1}}
-	stepB := Step{"b", "b", "b", "b", []string{}, []int{0}, []int{}}
-	pipeline := Pipeline{stepA, stepB}
+type MockedStep struct {
+    step Step
 
-	require.True(t, pipeline.Connected())
-	require.Len(t, pipeline.Components(), 1)
-	require.True(t, pipeline.Acyclic())
-	require.True(t, pipeline.Valid())
+    readyCount int
+    executeCount int
 }
 
-func TestTwoStepCycle(t *testing.T) {
-	stepA := Step{"a", "a", "a", "a", []string{}, []int{1}, []int{1}}
-	stepB := Step{"b", "b", "b", "b", []string{}, []int{0}, []int{0}}
-	pipeline := Pipeline{stepA, stepB}
-
-	require.True(t, pipeline.Connected())
-	require.Len(t, pipeline.Components(), 1)
-	require.False(t, pipeline.Acyclic())
-	require.False(t, pipeline.Valid())
+func mockStep(step Step) *MockedStep {
+    return &MockedStep{step: step}
 }
 
-func TestUnconnectedSteps(t *testing.T) {
-	stepA := Step{"a", "a", "a", "a", []string{}, []int{}, []int{}}
-	stepB := Step{"b", "b", "b", "b", []string{}, []int{}, []int{}}
-	pipeline := Pipeline{stepA, stepB}
-
-	require.False(t, pipeline.Connected())
-	require.Len(t, pipeline.Components(), 2)
-	require.True(t, pipeline.Acyclic())
-	require.False(t, pipeline.Valid())
+func (mockedStep *MockedStep) Ready() bool {
+    mockedStep.readyCount += 1
+    return mockedStep.step.Ready()
 }
 
-func TestBifurcatedPipeline(t *testing.T) {
-	stepA := Step{"a", "a", "a", "a", []string{}, []int{}, []int{1, 2}}
-	stepB := Step{"b", "b", "b", "b", []string{}, []int{0}, []int{}}
-	stepC := Step{"c", "c", "c", "c", []string{}, []int{0}, []int{}}
-	pipeline := Pipeline{stepA, stepB, stepC}
-
-	require.True(t, pipeline.Connected())
-	require.Len(t, pipeline.Components(), 1)
-	require.True(t, pipeline.Acyclic())
-	require.True(t, pipeline.Valid())
+func (mockedStep *MockedStep) Execute() {
+    mockedStep.executeCount += 1
+    mockedStep.step.Execute()
 }
 
-func TestMergingPipeline(t *testing.T) {
-	stepA := Step{"a", "a", "a", "a", []string{}, []int{}, []int{2}}
-	stepB := Step{"b", "b", "b", "b", []string{}, []int{}, []int{2}}
-	stepC := Step{"c", "c", "c", "c", []string{}, []int{0, 1}, []int{}}
-	pipeline := Pipeline{stepA, stepB, stepC}
+func TestExecutesOneStep(t *testing.T) {
+    step := mockStep(newStep("repo", "path", "command", []string{}))
+    steps := Steps{"first": step}
+    dependencies := Dependencies{"first": []string{}}
+    pipeline := newPipeline(steps, dependencies)
 
-	require.True(t, pipeline.Connected())
-	require.Len(t, pipeline.Components(), 1)
-	require.True(t, pipeline.Acyclic())
-	require.True(t, pipeline.Valid())
+    pipeline.Execute()
+
+    require.Equal(t, 1, step.executeCount)
 }
 
-func TestTriangularPipeline(t *testing.T) {
-	stepA := Step{"a", "a", "a", "a", []string{}, []int{}, []int{1, 2}}
-	stepB := Step{"b", "b", "b", "b", []string{}, []int{1}, []int{2}}
-	stepC := Step{"c", "c", "c", "c", []string{}, []int{0, 1}, []int{}}
-	pipeline := Pipeline{stepA, stepB, stepC}
+func TestExecutesIndependentSteps(t *testing.T) {
+    firstStep := mockStep(newStep("repo", "path", "command", []string{}))
+    secondStep := mockStep(newStep("repo", "path", "command", []string{}))
+    steps := Steps{"first": firstStep, "second": secondStep}
+    dependencies := Dependencies{"first": []string{}, "second": []string{}}
+    pipeline := newPipeline(steps, dependencies)
 
-	require.True(t, pipeline.Connected())
-	require.Len(t, pipeline.Components(), 1)
-	require.True(t, pipeline.Acyclic())
-	require.True(t, pipeline.Valid())
+    pipeline.Execute()
+
+    require.Equal(t, 1, firstStep.executeCount)
+    require.Equal(t, 1, secondStep.executeCount)
+}
+
+func TestExecutesSequentialSteps(t *testing.T) {
+    firstStep := mockStep(newStep("repo", "path", "command", []string{}))
+    secondStep := mockStep(newStep("repo", "path", "command", []string{}))
+    steps := Steps{"first": firstStep, "second": secondStep}
+    dependencies := Dependencies{"first": []string{}, "second": []string{"first"}}
+    pipeline := newPipeline(steps, dependencies)
+
+    pipeline.Execute()
+
+    require.Equal(t, 1, firstStep.executeCount)
+    require.Equal(t, 1, secondStep.executeCount)
+}
+
+func TestExecutesDiamondSteps(t *testing.T) {
+    firstStep := mockStep(newStep("repo", "path", "command", []string{}))
+    secondStep := mockStep(newStep("repo", "path", "command", []string{}))
+    thirdStep := mockStep(newStep("repo", "path", "command", []string{}))
+    fourthStep := mockStep(newStep("repo", "path", "command", []string{}))
+    steps := Steps{"first": firstStep, "second": secondStep, "third": thirdStep, "fourth": fourthStep}
+    dependencies := Dependencies{
+        "first": []string{},
+        "second": []string{"first"},
+        "third": []string{"first"},
+        "fourth": []string{"second", "third"},
+    }
+
+    pipeline := newPipeline(steps, dependencies)
+    pipeline.Execute()
+
+    require.Equal(t, 1, firstStep.executeCount)
+    require.Equal(t, 1, secondStep.executeCount)
+    require.Equal(t, 1, thirdStep.executeCount)
+    require.Equal(t, 1, fourthStep.executeCount)
 }

@@ -1,10 +1,6 @@
 package parser
 
 import (
-	"log"
-	"os"
-
-	"fmt"
 	"github.com/spf13/afero"
 	"gopkg.in/yaml.v2"
 )
@@ -36,7 +32,7 @@ func help() string {
 	return "Usage: cascade <steps.yaml>\n"
 }
 
-func Main() {
+/*func Main() {
 	if len(os.Args) < 2 {
 		fmt.Printf(help())
 		os.Exit(1)
@@ -50,4 +46,4 @@ func Main() {
 	}
 
 	fmt.Print(steps)
-}
+}*/
